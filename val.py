@@ -23,27 +23,27 @@ from utils.io_utils import load_model, subplot_map, write_pfm
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--data_root', type=str, default='/data1/mvs_training/blended_low_res')
-parser.add_argument('--dataset_name', type=str, default='blended')
-parser.add_argument('--model_name', type=str, default='model_cas')
+parser.add_argument('--data_root', type=str, help='The root dir of the data.')
+parser.add_argument('--dataset_name', type=str, default='blended', help='The name of the dataset. Should be identical to the dataloader source file. e.g. blended refers to data/blended.py.')
+parser.add_argument('--model_name', type=str, default='model_cas', help='The name of the model. Should be identical to the model source file. e.g. model_cas refers to core/model_cas.py.')
 
-parser.add_argument('--num_src', type=int, default=2)
-parser.add_argument('--max_d', type=int, default=128)
-parser.add_argument('--interval_scale', type=float, default=1.)
-parser.add_argument('--cas_depth_num', type=str, default='32,16,8')
-parser.add_argument('--cas_interv_scale', type=str, default='4,2,1')
-parser.add_argument('--resize', type=str, default='768,576')
-parser.add_argument('--crop', type=str, default='768,576')
+parser.add_argument('--num_src', type=int, default=3, help='The number of source views.')
+parser.add_argument('--max_d', type=int, default=128, help='The standard max depth number.')
+parser.add_argument('--interval_scale', type=float, default=1., help='The standard interval scale.')
+parser.add_argument('--cas_depth_num', type=str, default='32,16,8', help='The depth number for each stage.')
+parser.add_argument('--cas_interv_scale', type=str, default='4,2,1', help='The interval scale for each stage.')
+parser.add_argument('--resize', type=str, default='768,576', help='The size of the preprocessed input resized from the original one.')
+parser.add_argument('--crop', type=str, default='768,576', help='The size of the preprocessed input cropped from the resized one.')
 
-parser.add_argument('--mode', type=str, default='soft', choices=['soft', 'hard', 'uwta', 'maxpool', 'average'])
-parser.add_argument('--occ_guide', action='store_true', default=False)
+parser.add_argument('--mode', type=str, default='soft', choices=['soft', 'hard', 'uwta', 'maxpool', 'average'], help='The fusion strategy.')
+parser.add_argument('--occ_guide', action='store_true', default=False, help='Deprecated')
 
-parser.add_argument('--load_path', type=str, default='/data1/save/dfusion/200325')
-parser.add_argument('--load_step', type=int, default=-1)
+parser.add_argument('--load_path', type=str, default=None, help='The dir of the folder containing the pretrained checkpoints.')
+parser.add_argument('--load_step', type=int, default=-1, help='The step to load. -1 for the latest one.')
 
-parser.add_argument('--show_result', action='store_true', default=False)
-parser.add_argument('--write_result', action='store_true', default=False)
-parser.add_argument('--result_dir', type=str, default='/data1/va-mvsnet-exp/blended/val/base_vis')
+parser.add_argument('--show_result', action='store_true', default=False, help='Set to show the results.')
+parser.add_argument('--write_result', action='store_true', default=False, help='Set to save the results.')
+parser.add_argument('--result_dir', type=str, help='The dir to save the results.')
 
 args = parser.parse_args()
 

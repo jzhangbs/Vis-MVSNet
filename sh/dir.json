@@ -1,0 +1,13 @@
+{
+    "local": {
+        "bld_dir": "",
+        "dtu_dir": "",
+        "tnt_dir": "",
+        "tnt_training_dir": "",
+        "save_dir": "",
+        "batch_size": 2,
+        "num_workers": 4,
+        "train_environ": "",
+        "val_environ": ""
+    }
+}

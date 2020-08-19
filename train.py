@@ -25,40 +25,40 @@ from utils.utils import NanError
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--num_workers', type=int, default=8)
+parser.add_argument('--num_workers', type=int, default=8, help='The number of workers for the dataloader. 0 to disable the async loading.')
 # parser.add_argument('--num_gpus', type=int, default=1)
 
-parser.add_argument('--data_root', type=str, default='/data1/mvs_training/blended_low_res')
-parser.add_argument('--dataset_name', type=str, default='blended')
-parser.add_argument('--model_name', type=str, default='model_cas')
+parser.add_argument('--data_root', type=str, help='The root dir of the data.')
+parser.add_argument('--dataset_name', type=str, default='blended', help='The name of the dataset. Should be identical to the dataloader source file. e.g. blended refers to data/blended.py.')
+parser.add_argument('--model_name', type=str, default='model_cas', help='The name of the model. Should be identical to the model source file. e.g. model_cas refers to core/model_cas.py.')
 
-parser.add_argument('--num_src', type=int, default=3)
-parser.add_argument('--max_d', type=int, default=128)
-parser.add_argument('--interval_scale', type=float, default=1.)
-parser.add_argument('--cas_depth_num', type=str, default='32,16,8')
-parser.add_argument('--cas_interv_scale', type=str, default='4,2,1')
-parser.add_argument('--resize', type=str, default='768,576')
-parser.add_argument('--crop', type=str, default='640,512')
+parser.add_argument('--num_src', type=int, default=3, help='The number of source views.')
+parser.add_argument('--max_d', type=int, default=128, help='The standard max depth number.')
+parser.add_argument('--interval_scale', type=float, default=1., help='The standard interval scale.')
+parser.add_argument('--cas_depth_num', type=str, default='32,16,8', help='The depth number for each stage.')
+parser.add_argument('--cas_interv_scale', type=str, default='4,2,1', help='The interval scale for each stage.')
+parser.add_argument('--resize', type=str, default='768,576', help='The size of the preprocessed input resized from the original one.')
+parser.add_argument('--crop', type=str, default='640,512', help='The size of the preprocessed input cropped from the resized one.')
 
-parser.add_argument('--mode', type=str, default='soft', choices=['soft', 'hard', 'uwta', 'maxpool', 'average'])
-parser.add_argument('--occ_guide', action='store_true', default=False)
+parser.add_argument('--mode', type=str, default='soft', choices=['soft', 'hard', 'uwta', 'maxpool', 'average'], help='The fusion strategy.')
+parser.add_argument('--occ_guide', action='store_true', default=False, help='Deprecated')
 
-parser.add_argument('--lr', type=str, default='1e-3,.5e-3,.25e-3,.125e-3')
-parser.add_argument('--boundaries', type=str, default='.625,.75,.875')
-parser.add_argument('--weight_decay', type=float, default=0)
-parser.add_argument('--num_samples', type=int, default=160000)
-parser.add_argument('--batch_size', type=int, default=1)
+parser.add_argument('--lr', type=str, default='1e-3,.5e-3,.25e-3,.125e-3', help='Learning rate under piecewise constant scheme.')
+parser.add_argument('--boundaries', type=str, default='.625,.75,.875', help='Boundary percentage for changing the learning rate.')
+parser.add_argument('--weight_decay', type=float, default=0, help='Weight decay factor.')
+parser.add_argument('--num_samples', type=int, default=160000, help='Total number =total_step*batch_size of samples for training.')
+parser.add_argument('--batch_size', type=int, default=2, help='Batch size.')
 
-parser.add_argument('--load_path', type=str, default='/data1/save/dfusion/200325')
-parser.add_argument('--load_step', type=int, default=-1)
-parser.add_argument('--reset_step', action='store_true', default=True)
+parser.add_argument('--load_path', type=str, default=None, help='The dir of the folder containing the pretrained checkpoints.')
+parser.add_argument('--load_step', type=int, default=-1, help='The step to load. -1 for the latest one.')
+parser.add_argument('--reset_step', action='store_true', default=True, help='Set to reset the global step. Otherwise resume from the step of the checkpoint.')
 
-parser.add_argument('--job_name', type=str, default='temp')
+parser.add_argument('--job_name', type=str, default='temp', help='Job name for the name of the saved checkpoint.')
 
-parser.add_argument('--save_dir', type=str, default='/data1/save/dfusion')
+parser.add_argument('--save_dir', type=str, help='The dir for saving the checkpoints.')
 
-parser.add_argument('--snapshot', type=int, default=5000)
-parser.add_argument('--max_keep', type=int, default=1000)
+parser.add_argument('--snapshot', type=int, default=5000, help='Step interval to save a checkpoint.')
+parser.add_argument('--max_keep', type=int, default=1000, help='Max number of checkpoints kept.')
 
 args = parser.parse_args()
 

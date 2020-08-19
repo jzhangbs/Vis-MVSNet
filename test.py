@@ -25,27 +25,27 @@ from utils.io_utils import load_model, subplot_map, write_cam, write_pfm
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--data_root', type=str, default='/data1/mvs_training/tanksandtemples')
-parser.add_argument('--dataset_name', type=str, default='tnt_training')
-parser.add_argument('--model_name', type=str, default='model_rcas')
+parser.add_argument('--data_root', type=str, help='The root dir of the data.')
+parser.add_argument('--dataset_name', type=str, default='tanksandtemples', help='The name of the dataset. Should be identical to the dataloader source file. e.g. blended refers to data/blended.py.')
+parser.add_argument('--model_name', type=str, default='model_cas', help='The name of the model. Should be identical to the model source file. e.g. model_cas refers to core/model_cas.py.')
 
-parser.add_argument('--num_src', type=int, default=3)
-parser.add_argument('--max_d', type=int, default=256)
-parser.add_argument('--interval_scale', type=float, default=1)
-parser.add_argument('--cas_depth_num', type=str, default='64,32,16')
-parser.add_argument('--cas_interv_scale', type=str, default='4,2,1')
-parser.add_argument('--resize', type=str, default='1920,1080')
-parser.add_argument('--crop', type=str, default='1920,1056')
+parser.add_argument('--num_src', type=int, default=7, help='The number of source views.')
+parser.add_argument('--max_d', type=int, default=256, help='The standard max depth number.')
+parser.add_argument('--interval_scale', type=float, default=1., help='The standard interval scale.')
+parser.add_argument('--cas_depth_num', type=str, default='64,32,16', help='The depth number for each stage.')
+parser.add_argument('--cas_interv_scale', type=str, default='4,2,1', help='The interval scale for each stage.')
+parser.add_argument('--resize', type=str, default='1920,1080', help='The size of the preprocessed input resized from the original one.')
+parser.add_argument('--crop', type=str, default='1920,1056', help='The size of the preprocessed input cropped from the resized one.')
 
-parser.add_argument('--mode', type=str, default='average', choices=['soft', 'hard', 'uwta', 'maxpool', 'average'])
-parser.add_argument('--occ_guide', action='store_true', default=False)
+parser.add_argument('--mode', type=str, default='soft', choices=['soft', 'hard', 'uwta', 'maxpool', 'average'], help='The fusion strategy.')
+parser.add_argument('--occ_guide', action='store_true', default=False, help='Deprecated')
 
-parser.add_argument('--load_path', type=str, default='/mnt/qnas2/jingyang/save/dfusion/200525')
-parser.add_argument('--load_step', type=int, default=-1)
+parser.add_argument('--load_path', type=str, default=None, help='The dir of the folder containing the pretrained checkpoints.')
+parser.add_argument('--load_step', type=int, default=-1, help='The step to load. -1 for the latest one.')
 
-parser.add_argument('--show_result', action='store_true', default=False)
-parser.add_argument('--write_result', action='store_true', default=False)
-parser.add_argument('--result_dir', type=str, default=None)
+parser.add_argument('--show_result', action='store_true', default=False, help='Set to show the results.')
+parser.add_argument('--write_result', action='store_true', default=False, help='Set to save the results.')
+parser.add_argument('--result_dir', type=str, help='The dir to save the results.')
 
 args = parser.parse_args()
 
