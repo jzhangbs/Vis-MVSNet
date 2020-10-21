@@ -39,12 +39,19 @@ See `python train.py/val.py/test.py --help` for the explanation of all the flags
 `cas_depth_num` and `cas_interv_scale` are used in the coarse-to-fine architecture. The number in `cas_interv_scale` is applied to the depth interval __after__ the preprocessing. As is mentioned in the paper, the first stage consider the full depth range. So the parameters are manually set as `depth_num = 256 = 64*4 = cas_depth_num*cas_interv_scale`.
 
 ### Post-Processing
-The code for point cloud fusion will be available soon.
+Use `fusion.py` for depth filtering and fusion. 
+``` bash
+python fusion.py --data <dir_of_depths> --pair <dir_of_pair> --vthresh 4 --pthresh .8,.7,.8
+```
+where the `--data` is the same as the `--result_dir` in `test.py`. This script uses pytorch so can be accelerated by GPU. 
 
 ## File Formats
 The format of all the I/O files follows MVSNet, except for that we output three probability maps instead of one. 
 
 ## Changelog
+### Oct 21 2020
+- Add pretrained model (`pretrained_model`)
+- Add script for depth fusion
 ### Aug 19 2020
 - Add README
 - Add train/val/test scripts
