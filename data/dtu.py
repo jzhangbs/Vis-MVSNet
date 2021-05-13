@@ -37,7 +37,7 @@ class DTU(data.Dataset):
         light_idx = i // self.num_view % self.num_light if self.fix_light is None else self.fix_light#3#
         scan_idx = i // self.num_view // self.num_light#int(os.environ['SCAN']) #2#
         ref = self.data_list[scan_idx][light_idx][ref_idx]
-        scan = int(ref[0].split('/')[1][4:])
+        scan = int(ref[0].split('/')[1].split('_')[0][4:])
         srcs = [self.data_list[scan_idx][light_idx][source_idx] for source_idx in src_idxs]
         masks = [f'occlusion2/scan{scan}/{ref_idx}_{src_idx}.png' for src_idx in src_idxs]
         skip = 0
@@ -57,8 +57,8 @@ def read(filenames, max_d, interval_scale):
     ref, *srcs = [cv2.imread(fn) for fn in [ref_name] + srcs_name]
     ref_cam, *srcs_cam = [load_cam(fn, max_d, interval_scale) for fn in [ref_cam_name] + srcs_cam_name]
     gt = np.expand_dims(load_pfm(gt_name), -1)
-    masks = [np.expand_dims(cv2.imread(fn, cv2.IMREAD_GRAYSCALE), -1) for fn in masks_name]
-    # masks = [(np.ones_like(gt)*255).astype(np.uint8) for fn in masks_name]
+    # masks = [np.expand_dims(cv2.imread(fn, cv2.IMREAD_GRAYSCALE), -1) for fn in masks_name]
+    masks = [(np.ones_like(gt)*255).astype(np.uint8) for fn in masks_name]
     return {
         'ref': ref,
         'ref_cam': ref_cam,

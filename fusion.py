@@ -143,6 +143,7 @@ if __name__ == '__main__':
         idx_img = get_pixel_grids(*ref_depth_ave.size()[-2:]).unsqueeze(0)
         idx_cam = idx_img2cam(idx_img, ref_depth_ave, sample['ref_cam'])
         points = idx_cam2world(idx_cam, sample['ref_cam'])[...,:3,0].permute(0,3,1,2)
+        cam_center_np = (- sample['ref_cam'][:,0,:3,:3].transpose(-2,-1) @ sample['ref_cam'][:,0,:3,3:])[...,0].cpu().numpy()  # n3
         points_np = points.cpu().data.numpy()
         mask_np = mask.cpu().data.numpy()
         for i in range(points_np.shape[0]):
@@ -151,11 +152,21 @@ if __name__ == '__main__':
             c_f_list = [sample_np['ref'][i,k][mask_np[i,0]] for k in range(3)]
             c_f = np.stack(c_f_list, -1) / 255
             ref_id = str(sample_np['id'][i])
-            views[ref_id] = (p_f, c_f)
+
+            pcd_single = o3d.geometry.PointCloud()
+            pcd_single.points = o3d.utility.Vector3dVector(p_f)
+            pcd_single.colors = o3d.utility.Vector3dVector(c_f[:,::-1])
+            pcd_single.estimate_normals()
+            pcd_single.orient_normals_towards_camera_location(cam_center_np[i])
+
+            views[ref_id] = (p_f, c_f, pcd_single)
     
     print('Write combined PCD')
-    p_all, c_all = [np.concatenate([v[k] for key, v in views.items()], axis=0) for k in range(2)]
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(p_all)
-    pcd.colors = o3d.utility.Vector3dVector(c_all)
+    # p_all, c_all = [np.concatenate([v[k] for key, v in views.items()], axis=0) for k in range(2)]
+    # pcd = o3d.geometry.PointCloud()
+    # pcd.points = o3d.utility.Vector3dVector(p_all)
+    # pcd.colors = o3d.utility.Vector3dVector(c_all[:,::-1])
+    pcd = None
+    for k, (_, _, pcd_single) in views.items():
+        pcd = pcd + pcd_single if pcd is not None else pcd_single
     o3d.io.write_point_cloud(os.path.join(args.data, f'all_torch.ply'), pcd)
