@@ -9,18 +9,13 @@ import torch
 
 
 def recursive_apply(obj: Union[List, Dict], func):
-    if type(obj) == dict:
-        for k in obj:
-            if type(obj[k]) == list or type(obj[k]) == dict:
-                recursive_apply(obj[k], func)
-            else:
-                obj[k] = func(obj[k])
-    if type(obj) == list:
-        for i in range(len(obj)):
-            if type(obj[i]) == list or type(obj[i]) == dict:
-                recursive_apply(obj[i], func)
-            else:
-                obj[i] = func(obj[i])
+    assert type(obj) == dict or type(obj) == list
+    idx_iter = obj if type(obj) == dict else range(len(obj))
+    for k in idx_iter:
+        if type(obj[k]) == list or type(obj[k]) == dict:
+            recursive_apply(obj[k], func)
+        else:
+            obj[k] = func(obj[k])
 
 
 def center_image(img):

@@ -131,6 +131,8 @@ If you find our work useful in your research, please kindly cite
 ```
 
 ## Changelog
+### May 28 2021
+- Improved depth fusion
 ### May 11 2021
 - Update README
 - Add `colmap2mvsnet.py`
