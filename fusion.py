@@ -121,6 +121,12 @@ def ave_fusion(ref_depth, reproj_xyd, masks):
     ave = ((reproj_xyd[:,:,2:,:,:]*masks).sum(dim=1)+ref_depth) / (masks.sum(dim=1)+1)  # n1hw
     return ave
 
+def med_fusion(ref_depth, reproj_xyd, masks, mask):
+    all_d = torch.cat([reproj_xyd[:,:,2:,:,:]*masks, ref_depth.unsqueeze(1)], dim=1)  # n(v+1)1hw
+    valid_num = masks.sum(dim=1, keepdim=True) + 1  # n11hw
+    gather_idx = (valid_num // 2).long()  # n11hw
+    med = all_d.sort(dim=1, descending=True)[0].gather(dim=1, index=gather_idx).squeeze(1)  # n1hw
+    return med * mask
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -132,6 +138,7 @@ if __name__ == '__main__':
     parser.add_argument('--pthresh', type=str, default='.8,.7,.8')
     parser.add_argument('--cam_scale', type=float, default=1)
     # parser.add_argument('--show_result', action='store_true', default=False)
+    parser.add_argument('--downsample', type=float, default=None)
 
     args = parser.parse_args()
 
@@ -158,6 +165,26 @@ if __name__ == '__main__':
     for i, id in tqdm(enumerate(pair['id_list']), 'prob filter', n_views):
         views[id]['mask'] = prob_filter(views[id]['prob'].cuda(), pthresh).cpu()  # 11hw bool
         views[id]['depth'] *= views[id]['mask']
+    
+    update = {}
+    for i, id in tqdm(enumerate(pair['id_list']), 'vis filter and med fusion', n_views):
+        srcs_id = pair[id]['pair'][:args.view]
+        ref_depth_g, ref_cam_g = views[id]['depth'].cuda(), views[id]['cam'].cuda()
+        srcs_depth_g, srcs_cam_g = [torch.stack([views[loop_id][attr] for loop_id in srcs_id], dim=1).cuda() for attr in ['depth', 'cam']]
+
+        reproj_xyd_g, in_range_g = get_reproj(ref_depth_g, srcs_depth_g, ref_cam_g, srcs_cam_g)
+        vis_masks_g, vis_mask_g = vis_filter(ref_depth_g, reproj_xyd_g, in_range_g, 1, 0.01, args.vthresh)
+
+        ref_depth_med_g = med_fusion(ref_depth_g, reproj_xyd_g, vis_masks_g, vis_mask_g)
+
+        update[id] = {
+            'depth': ref_depth_med_g.cpu(),
+            'mask': vis_mask_g.cpu()
+        }
+        del ref_depth_g, ref_cam_g, srcs_depth_g, srcs_cam_g, reproj_xyd_g, in_range_g, vis_masks_g, vis_mask_g, ref_depth_med_g
+    for i, id in enumerate(pair['id_list']):
+        views[id]['mask'] = views[id]['mask'] & update[id]['mask']
+        views[id]['depth'] = update[id]['depth'] * views[id]['mask']
     
     update = {}
     for i, id in tqdm(enumerate(pair['id_list']), 'vis filter and ave fusion', n_views):
@@ -204,29 +231,35 @@ if __name__ == '__main__':
         idx_cam_g = idx_img2cam(idx_img_g, ref_depth_g, ref_cam_g)
         points_g = idx_cam2world(idx_cam_g, ref_cam_g)[...,:3,0]  # nhw3
         cam_center_g = (- ref_cam_g[:,0,:3,:3].transpose(-2,-1) @ ref_cam_g[:,0,:3,3:])[...,0]  # n3
+        dir_vec_g = cam_center_g.reshape(-1,1,1,3) - points_g  # nhw3
 
         p_f = points_g.cpu()[ views[id]['mask'].squeeze(1) ]  # m3
         c_f = views[id]['image'].permute(0,2,3,1)[ views[id]['mask'].squeeze(1) ] / 255  # m3
-
-        pcd_single = o3d.geometry.PointCloud()
-        pcd_single.points = o3d.utility.Vector3dVector(p_f.numpy())
-        pcd_single.colors = o3d.utility.Vector3dVector(c_f.numpy())
-        pcd_single.estimate_normals()
-        pcd_single.orient_normals_towards_camera_location(cam_center_g[0].cpu().numpy())
-        normals = torch.from_numpy(np.asarray(pcd_single.normals)).float()
+        d_f = dir_vec_g.cpu()[ views[id]['mask'].squeeze(1) ]  # m3
         
         pcds[id] = {
             'points': p_f,
             'colors': c_f,
-            'normals': normals
+            'dirs': d_f,
         }
         del views[id]
     
-    print('Write combined PCD')
-    all_points, all_colors, all_normals = \
-        [torch.cat([pcds[id][attr] for id in pair['id_list']], dim=0) for attr in ['points', 'colors', 'normals']]
+    print('Construct combined PCD')
+    all_points, all_colors, all_dirs = \
+        [torch.cat([pcds[id][attr] for id in pair['id_list']], dim=0) for attr in ['points', 'colors', 'dirs']]
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(all_points.numpy())
     pcd.colors = o3d.utility.Vector3dVector(all_colors.numpy())
-    pcd.normals = o3d.utility.Vector3dVector(all_normals.numpy())
-    o3d.io.write_point_cloud(os.path.join(args.data, f'all_torch.ply'), pcd)
+    
+    print('Estimate normal')
+    pcd.estimate_normals()
+    all_normals_np = np.asarray(pcd.normals)
+    is_same_dir = (all_normals_np * all_dirs.numpy()).sum(-1, keepdims=True) > 0
+    all_normals_np *= is_same_dir.astype(np.float32) * 2 - 1
+    pcd.normals = o3d.utility.Vector3dVector(all_normals_np)
+
+    if args.downsample is not None:
+        print('Down sample')
+        pcd = pcd.voxel_down_sample(args.downsample)
+
+    o3d.io.write_point_cloud(os.path.join(args.data, f'all_torch.ply'), pcd, print_progress=True)
