@@ -24,7 +24,46 @@ def load_pair(file: str):
     return pairs
 
 
-def load_cam(file: str, max_d, interval_scale=1):
+def load_pair_v2(file: str, min_views: int=None):
+    with open(file) as f:
+        lines = f.readlines()
+    n_cam = int(lines[0])
+    pairs = {}
+    img_ids = []
+    for i in range(1, 1+2*n_cam, 2):
+        pair = []
+        score = []
+        img_id = lines[i].strip()
+        pair_str = lines[i+1].strip().split(' ')
+        n_pair = int(pair_str[0])
+        if min_views is not None and n_pair < min_views: continue
+        for j in range(1, 1+2*n_pair, 2):
+            pair.append(pair_str[j])
+            score.append(float(pair_str[j+1]))
+        img_ids.append(img_id)
+        pairs[img_id] = {'id': img_id, 'index': i//2, 'pair': pair, 'score': score}
+    pairs['id_list'] = img_ids
+    return pairs
+
+
+def write_pair(file: str, pair):
+    if type(pair) is dict:
+        content = f"{len(pair['id_list'])}\n"
+        for idx in pair['id_list']:
+            content += f'{idx}\n{len(pair[idx]["pair"])} '
+            content += f"{' '.join([f'{src_idx} {src_score}' for src_idx, src_score in zip(pair[idx]['pair'], pair[idx]['score'])])}\n"
+    elif type(pair) is list:
+        content = f"{len(pair)}\n"
+        for idx, p in enumerate(pair):
+            content += f'{idx}\n{len(p)} '
+            content += f"{' '.join([f'{src_idx} {0}' for src_idx in p])}\n"
+    else:
+        raise TypeError('pair should be either list or dict.')
+    with open(file, 'w') as f:
+        f.write(content)
+
+
+def load_cam(file: str, max_d, interval_scale=1, override=False):
     """ read camera txt file """
     cam = np.zeros((2, 4, 4))
     with open(file) as f:
@@ -52,10 +91,16 @@ def load_cam(file: str, max_d, interval_scale=1):
         cam[1][3][2] = words[29]
         cam[1][3][3] = cam[1][3][0] + cam[1][3][1] * (cam[1][3][2] - 1)
     elif len(words) == 31:
-        cam[1][3][0] = words[27]
-        cam[1][3][1] = float(words[28]) * interval_scale
-        cam[1][3][2] = words[29]
-        cam[1][3][3] = words[30]
+        if override:
+            cam[1][3][0] = words[27]
+            cam[1][3][1] = (float(words[30]) - float(words[27])) / (max_d - 1)
+            cam[1][3][2] = max_d
+            cam[1][3][3] = words[30]
+        else:
+            cam[1][3][0] = words[27]
+            cam[1][3][1] = float(words[28]) * interval_scale
+            cam[1][3][2] = words[29]
+            cam[1][3][3] = words[30]
     else:
         cam[1][3][0] = 0
         cam[1][3][1] = 0

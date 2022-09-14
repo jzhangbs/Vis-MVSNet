@@ -1,6 +1,5 @@
 import argparse
 import os
-#os.environ['SCAN'] = '0'
 import shutil
 import sys
 import json
@@ -17,10 +16,8 @@ import tqdm
 import matplotlib.pyplot as plt
 # from apex import amp
 
-# from core.model_cas import Model, Loss
 from utils.preproc import to_channel_first, resize, random_crop, recursive_apply, image_net_center_inv, scale_camera
-# from data.tnt_training import get_val_loader
-from utils.io_utils import load_model, subplot_map, write_cam, write_pfm
+from utils.io_utils import load_model, subplot_map, write_cam, write_pfm, write_pair
 
 
 parser = argparse.ArgumentParser()
@@ -37,7 +34,7 @@ parser.add_argument('--cas_interv_scale', type=str, default='4,2,1', help='The i
 parser.add_argument('--resize', type=str, default='1920,1080', help='The size of the preprocessed input resized from the original one.')
 parser.add_argument('--crop', type=str, default='1920,1056', help='The size of the preprocessed input cropped from the resized one.')
 
-parser.add_argument('--mode', type=str, default='soft', choices=['soft', 'hard', 'uwta', 'maxpool', 'average'], help='The fusion strategy.')
+parser.add_argument('--mode', type=str, default='soft', choices=['soft', 'maxpool', 'average', 'aveplus'], help='The fusion strategy.')
 parser.add_argument('--occ_guide', action='store_true', default=False, help='Deprecated')
 
 parser.add_argument('--load_path', type=str, default=None, help='The dir of the folder containing the pretrained checkpoints.')
@@ -50,14 +47,13 @@ parser.add_argument('--result_dir', type=str, help='The dir to save the results.
 args = parser.parse_args()
 
 if __name__ == '__main__':
-    torch.backends.cudnn.benchmark = True
+    # torch.backends.cudnn.benchmark = True
 
     [resize_width, resize_height], [crop_width, crop_height] = [[int(v) for v in arg_str.split(',')] for arg_str in [args.resize, args.crop]]
     cas_depth_num = [int(v) for v in args.cas_depth_num.split(',')]
     cas_interv_scale = [float(v) for v in args.cas_interv_scale.split(',')]
 
     Model = importlib.import_module(f'core.{args.model_name}').Model
-    Loss = importlib.import_module(f'core.{args.model_name}').Loss
     get_val_loader = importlib.import_module(f'data.{args.dataset_name}').get_val_loader
 
     dataset, loader = get_val_loader(
@@ -82,38 +78,36 @@ if __name__ == '__main__':
     print(f'load {os.path.join(args.load_path, str(args.load_step))}')
     model.eval()
 
+    if args.write_result:
+        write_pair(os.path.join(args.result_dir, 'pair.txt'), dataset.pair)
+
     pbar = tqdm.tqdm(enumerate(loader), dynamic_ncols=True, total=len(loader))
-    # pbar = itertools.product(range(num_scan), range(num_ref), range(num_view))
     for i, sample in pbar:
         if sample.get('skip') is not None and np.any(sample['skip']): raise ValueError()
+        if sample.get('id') is not None:
+            sample_id = str(sample['id'][0])
+            del sample['id']
+        else:
+            sample_id = str(i)
 
         ref, ref_cam, srcs, srcs_cam, gt, masks = [sample[attr] for attr in ['ref', 'ref_cam', 'srcs', 'srcs_cam', 'gt', 'masks']]
         recursive_apply(sample, lambda x: torch.from_numpy(x).float().cuda())
         ref_t, ref_cam_t, srcs_t, srcs_cam_t, gt_t, masks_t = [sample[attr] for attr in ['ref', 'ref_cam', 'srcs', 'srcs_cam', 'gt', 'masks']]
 
         with torch.no_grad():
-            # est_depth, prob_map, pair_results = model([ref_t, ref_cam_t, srcs_t, srcs_cam_t], args.max_d, upsample=True, mem=True, mode=args.mode)  #MVS
-            outputs, refined_depth, prob_maps = model(sample, cas_depth_num, cas_interv_scale, mode=args.mode)
-            [[est_depth_1, pair_results_1], [est_depth_2, pair_results_2], [est_depth_3, pair_results]] = outputs
-            # est_depth = model([ref_t, ref_cam_t, srcs_t, srcs_cam_t, gt_t], args.max_d)
-        # est_depth, prob_map = [arr.clone().cpu().data.numpy() for arr in [refined_depth, prob_map]]
-        est_depth, *prob_maps = [arr.clone().cpu().data.numpy() for arr in [refined_depth] + prob_maps]
-        recursive_apply(pair_results, lambda x: x.clone().cpu().data.numpy())  #MVS
+            final_depth, stages = model(sample, cas_depth_num, cas_interv_scale, mode=args.mode, verbose_return=False)
+        recursive_apply(stages, lambda x: x.clone().cpu().numpy())
 
-        pbar.set_description(f'{est_depth.shape}')
+        pbar.set_description(f'{final_depth.shape}')
 
-        if (i % 49 == 0 or True) and (args.show_result or args.write_result):
+        if args.show_result or args.write_result:
+            prob_maps = [stages[i]['prob_map'][0, 0] for i in range(3)]
             if args.show_result:
-                # plt_map = [
-                #     [est_depth[0, 0], prob_maps[2][0, 0], None],
-                #     [ref[0, 0], srcs[0, 0, 0], srcs[0, 1, 0]],
-                #     [prob_maps[0][0, 0], pair_results[0][0][0, 0], pair_results[1][0][0, 0]],  #MVS
-                #     [prob_maps[1][0, 0], pair_results[0][1][0][0, 0], pair_results[1][1][0][0, 0]],
-                # ]
+                stage_est_depths = [stages[i]['est_depth'][0, 0] for i in range(3)]
                 plt_map = [
-                    [est_depth[0, 0], est_depth_1.cpu().data.numpy()[0, 0], est_depth_2.cpu().data.numpy()[0, 0]],
+                    [stage_est_depths[0], stage_est_depths[1], stage_est_depths[2]],
                     [ref[0, 0], srcs[0, 0, 0], srcs[0, 1, 0]],
-                    [prob_maps[0][0, 0], prob_maps[1][0, 0], prob_maps[2][0, 0]]
+                    [prob_maps[0], prob_maps[1], prob_maps[2]]
                 ]
                 subplot_map(plt_map)
                 plt.show()
@@ -123,12 +117,12 @@ if __name__ == '__main__':
                 ref_o = cv2.resize(ref_o, (ref_o.shape[1]//2, ref_o.shape[0]//2), interpolation=cv2.INTER_LINEAR)
                 ref_cam_o = ref_cam[0]
                 ref_cam_o = scale_camera(ref_cam_o, .5)
-                est_depth_o = est_depth[0, 0]
-                prob_maps_o = [prob_map[0, 0] for prob_map in prob_maps]
-                cv2.imwrite(os.path.join(args.result_dir, f'{i:08}.jpg'), ref_o)
-                write_cam(os.path.join(args.result_dir, f'cam_{i:08}_flow3.txt'), ref_cam_o)
-                write_pfm(os.path.join(args.result_dir, f'{i:08}_flow3.pfm'), est_depth_o)
+                est_depth_o = final_depth[0, 0].detach().cpu().numpy()
+                prob_maps_o = prob_maps
+                prob_map_combined = np.stack(prob_maps_o, axis=-1)
+                cv2.imwrite(os.path.join(args.result_dir, f'{sample_id.zfill(8)}.jpg'), ref_o)
+                write_cam(os.path.join(args.result_dir, f'cam_{sample_id.zfill(8)}_flow3.txt'), ref_cam_o)
+                write_pfm(os.path.join(args.result_dir, f'{sample_id.zfill(8)}_flow3.pfm'), est_depth_o)
                 for stage_i, prob_map_o in enumerate(prob_maps_o):
-                    write_pfm(os.path.join(args.result_dir, f'{i:08}_flow{stage_i+1}_prob.pfm'), prob_map_o)
-
-        # del pair_results, est_depth
+                    write_pfm(os.path.join(args.result_dir, f'{sample_id.zfill(8)}_flow{stage_i+1}_prob.pfm'), prob_map_o)
+                write_pfm(os.path.join(args.result_dir, f'{sample_id.zfill(8)}_prob.pfm'), prob_map_combined)

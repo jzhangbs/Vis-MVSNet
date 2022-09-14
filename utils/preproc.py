@@ -12,6 +12,8 @@ def recursive_apply(obj: Union[List, Dict], func):
     assert type(obj) == dict or type(obj) == list
     idx_iter = obj if type(obj) == dict else range(len(obj))
     for k in idx_iter:
+        if obj[k] is None:
+            continue
         if type(obj[k]) == list or type(obj[k]) == dict:
             recursive_apply(obj[k], func)
         else:

@@ -495,3 +495,40 @@ def bin_op_reduce(lst: List, func):
     for i in range(1, len(lst)):
         result = func(result, lst[i])
     return result
+
+def append_hom(arr, dim=-1):
+    if isinstance(arr, torch.Tensor):
+        return append_hom_torch(arr, dim)
+    elif isinstance(arr, np.ndarray):
+        return append_hom_np(arr, dim)
+    else:
+        raise NotImplementedError
+
+def append_hom_torch(arr, dim):
+    shape = list(arr.shape)
+    shape[dim] = 1
+    append = torch.cat(
+        [arr, torch.ones(*shape, dtype=arr.dtype, device=arr.device)], dim=dim)
+    return append
+
+def append_hom_np(arr, dim):
+    shape = list(arr.shape)
+    shape[dim] = 1
+    append = np.concatenate(
+        [arr, np.ones(shape, dtype=arr.dtype)], axis=dim)
+    return append
+
+def normalize_for_grid_sample(input_, grid):
+    size = torch.tensor(input_.size())[2:].flip(0).to(grid.dtype).to(grid.device).view(1,1,1,-1)  # 111N
+    grid_n = grid / size
+    grid_n = (grid_n * 2 - 1).clamp(-1.1, 1.1)
+    return grid_n
+
+
+def get_in_range(grid):  
+    """after normalization, keepdim=False"""
+    masks = []
+    for dim in range(grid.size()[-1]):
+        masks += [grid[..., dim]<=1, grid[..., dim]>=-1]
+    in_range = bin_op_reduce(masks, torch.min).to(grid.dtype)
+    return in_range
