@@ -59,6 +59,8 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
     torch.backends.cudnn.benchmark = True
+    torch.set_default_device('cuda')
+    torch.set_default_dtype(torch.float32)
 
     # seed = 0
     # torch.backends.cudnn.benchmark = False
@@ -175,12 +177,12 @@ if __name__ == '__main__':
         if global_step != 0 and global_step % args.snapshot == 0:
             save_model({
                 'global_step': global_step,
-                'state_dict': model.state_dict()
+                'state_dict': model.module.state_dict()
             }, args.save_dir, args.job_name, global_step, args.max_keep)
 
         global_step += 1
 
     save_model({
         'global_step': global_step,
-        'state_dict': model.state_dict()
+        'state_dict': model.module.state_dict()
     }, args.save_dir, args.job_name, global_step, args.max_keep)

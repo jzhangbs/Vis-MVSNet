@@ -218,8 +218,8 @@ def save_model(obj, save_dir: str, job_name: str, global_step: int, max_keep: in
 
 
 def load_model(model: nn.Module, load_path: str, load_step: int):
-    if load_step is None:
-        model.load_state_dict(torch.load(load_path)['state_dict'])
+    if load_step is None or load_path.endswith('.pt'):
+        model.load_state_dict(torch.load(load_path, map_location=torch.device('cpu'))['state_dict'])
         return 0
     else:
         if load_step == -1:
@@ -230,8 +230,8 @@ def load_model(model: nn.Module, load_path: str, load_step: int):
                 raise Exception('no latest model.')
             load_step = record[-1]
         cktp_file = os.path.join(load_path, f'{load_step}.tar')
-        model.load_state_dict(torch.load(cktp_file)['state_dict'], strict=True)
-        return torch.load(cktp_file)['global_step']
+        model.load_state_dict(torch.load(cktp_file, map_location=torch.device('cpu'))['state_dict'], strict=True)
+        return torch.load(cktp_file, map_location=torch.device('cpu'))['global_step']
 
 
 def subplot_map(plt_map):

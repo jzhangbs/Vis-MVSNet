@@ -44,10 +44,14 @@ parser.add_argument('--show_result', action='store_true', default=False, help='S
 parser.add_argument('--write_result', action='store_true', default=False, help='Set to save the results.')
 parser.add_argument('--result_dir', type=str, help='The dir to save the results.')
 
+parser.add_argument('--device', type=str, choices=['cuda', 'mps'], default='cuda')
+
 args = parser.parse_args()
 
 if __name__ == '__main__':
     # torch.backends.cudnn.benchmark = True
+    torch.set_default_device(args.device)
+    torch.set_default_dtype(torch.float32)
 
     [resize_width, resize_height], [crop_width, crop_height] = [[int(v) for v in arg_str.split(',')] for arg_str in [args.resize, args.crop]]
     cas_depth_num = [int(v) for v in args.cas_depth_num.split(',')]
@@ -69,9 +73,8 @@ if __name__ == '__main__':
     )
 
     model = Model()
-    model.cuda()
+    model.to(device=args.device)
     # model = amp.initialize(model, opt_level='O0')
-    model = nn.DataParallel(model)
     print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters() if p.requires_grad])))
 
     load_model(model, args.load_path, args.load_step)
@@ -79,6 +82,7 @@ if __name__ == '__main__':
     model.eval()
 
     if args.write_result:
+        os.makedirs(args.result_dir, exist_ok=True)
         write_pair(os.path.join(args.result_dir, 'pair.txt'), dataset.pair)
 
     pbar = tqdm.tqdm(enumerate(loader), dynamic_ncols=True, total=len(loader))
@@ -91,7 +95,7 @@ if __name__ == '__main__':
             sample_id = str(i)
 
         ref, ref_cam, srcs, srcs_cam, gt, masks = [sample[attr] for attr in ['ref', 'ref_cam', 'srcs', 'srcs_cam', 'gt', 'masks']]
-        recursive_apply(sample, lambda x: torch.from_numpy(x).float().cuda())
+        recursive_apply(sample, lambda x: torch.from_numpy(x).float().to(device=args.device))
         ref_t, ref_cam_t, srcs_t, srcs_cam_t, gt_t, masks_t = [sample[attr] for attr in ['ref', 'ref_cam', 'srcs', 'srcs_cam', 'gt', 'masks']]
 
         with torch.no_grad():

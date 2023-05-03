@@ -46,6 +46,8 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
     torch.backends.cudnn.benchmark = True
+    torch.set_default_device('cuda')
+    torch.set_default_dtype(torch.float32)
 
     [resize_width, resize_height], [crop_width, crop_height] = [[int(v) for v in arg_str.split(',')] for arg_str in [args.resize, args.crop]]
     cas_depth_num = [int(v) for v in args.cas_depth_num.split(',')]
@@ -70,7 +72,6 @@ if __name__ == '__main__':
     model = Model()
     model.cuda()
     # model = amp.initialize(model, opt_level='O0')
-    model = nn.DataParallel(model)
     print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters() if p.requires_grad])))
     compute_loss = Loss()
 

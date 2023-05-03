@@ -10,32 +10,11 @@ import cv2
 
 from core.homography import get_pixel_grids
 from core.nn_utils import bin_op_reduce, get_in_range, normalize_for_grid_sample
-from utils.io_utils import load_cam, load_pfm
+from utils.io_utils import load_cam, load_pfm, load_pair_v2
 from utils.preproc import recursive_apply
 
 _ext = load(name='fusion', sources=['utils/fusion.cpp'], extra_cflags=['-std=c++17', '-O3'])
 
-
-def load_pair(file: str, min_views: int=None):
-    with open(file) as f:
-        lines = f.readlines()
-    n_cam = int(lines[0])
-    pairs = {}
-    img_ids = []
-    for i in range(1, 1+2*n_cam, 2):
-        pair = []
-        score = []
-        img_id = lines[i].strip()
-        pair_str = lines[i+1].strip().split(' ')
-        n_pair = int(pair_str[0])
-        if min_views is not None and n_pair < min_views: continue
-        for j in range(1, 1+2*n_pair, 2):
-            pair.append(pair_str[j])
-            score.append(float(pair_str[j+1]))
-        img_ids.append(img_id)
-        pairs[img_id] = {'id': img_id, 'index': i//2, 'pair': pair, 'score': score}
-    pairs['id_list'] = img_ids
-    return pairs
 
 def idx_img2cam(idx_img_homo, depth, cam):  # nhw31, n1hw -> nhw41
     idx_cam = cam[:,1:2,:3,:3].unsqueeze(1).inverse() @ idx_img_homo  # nhw31
@@ -228,7 +207,8 @@ if __name__ == '__main__':
 
     pthresh = [float(v) for v in args.pthresh.split(',')]
     num_src = args.view
-    pair = load_pair(args.pair)#, min_views=num_src)
+    pair_path = args.pair if args.pair != '' else os.path.join(args.data, 'pair.txt')
+    pair = load_pair_v2(pair_path)#, min_views=num_src)
     n_views = len(pair['id_list'])
 
     views = {}

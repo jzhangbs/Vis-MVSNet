@@ -13,7 +13,7 @@ from core.homography import get_pixel_grids, get_homographies, homography_warpin
 from utils.utils import NanError
 
 cpg = 8
-ZERO = torch.tensor(0).float().cuda()
+ZERO = torch.tensor(0)
 
 class FeatExt(nn.Module):
 
@@ -159,20 +159,20 @@ class SingleStage(nn.Module):
         pair_results = []  #MVS
 
         if mode == 'soft':
-            weight_sum = torch.zeros((ref_ncdhw.shape[0], 1, 1, *ref_ncdhw.shape[3:])).to(ref_ncdhw.dtype).cuda()
+            weight_sum = torch.zeros((ref_ncdhw.shape[0], 1, 1, *ref_ncdhw.shape[3:])).to(ref_ncdhw.dtype).to(ref_ncdhw.device)
         if mode == 'average':
             pass
         if mode == 'aveplus':
-            weight_sum = torch.zeros((ref_ncdhw.shape[0], 1, *ref_ncdhw.shape[2:])).to(ref_ncdhw.dtype).cuda()
+            weight_sum = torch.zeros((ref_ncdhw.shape[0], 1, *ref_ncdhw.shape[2:])).to(ref_ncdhw.dtype).to(ref_ncdhw.device)
         if mode == 'maxpool':
             init = True
-        fused_interm = torch.zeros((ref_ncdhw.shape[0], 8, *ref_ncdhw.shape[2:])).to(ref_ncdhw.dtype).cuda()
+        fused_interm = torch.zeros((ref_ncdhw.shape[0], 8, *ref_ncdhw.shape[2:])).to(ref_ncdhw.dtype).to(ref_ncdhw.device)
 
         for src_feat, src_cam in zip(srcs_feat, srcs_cam):
             warped_src, warped_mask = self.build_cost_volume_2(ref_feat, ref_cam, src_feat, src_cam, depth_num, depth_start, depth_interval, s_scale, 1)
             cost_volume = groupwise_correlation(ref_ncdhw, warped_src, 8, 1)
             interm = self.reg(cost_volume)
-            if verbose_return:
+            if verbose_return or mode in ['soft']:
                 score_volume = self.reg_pair(interm)  # n1dhw
                 score_volume = score_volume.squeeze(1)  # ndhw
                 prob_volume, est_depth_class = soft_argmin(score_volume, dim=1, keepdim=True)
