@@ -67,7 +67,7 @@ For depth fusion, please refer to `Post-Processing` section.
 ### Data preparation
 Download the [Blended low res set](https://drive.google.com/open?id=1ilxls-VJNvJnB7IaFj7P0ehMPr7ikRCb), [Tanks and Temple testing set](https://drive.google.com/open?id=1YArOJaX9WVLJh4757uE8AEREYkgszrCo). For more information, please visit [MVSNet](https://github.com/YoYo000/MVSNet). 
 
-For the pre-processed DTU dataset, please download the [rectified images](http://roboimagedata.compute.dtu.dk/?page_id=36) from the official website and ground truth depths and cameras: [part1](https://hkustconnect-my.sharepoint.com/:u:/g/personal/jzhangbs_connect_ust_hk/EfZTR-JYiGBJqC873IoQnWgBYCljQBMYv5N7PKQvrCwNbw?e=ThTK8U) [part2](https://hkustconnect-my.sharepoint.com/:u:/g/personal/jzhangbs_connect_ust_hk/ESY13vX9JkBPoAr8sEOfAmgBIQqWoNaEsS0Y10nQqjI-LA?e=uaqZtF). The data should be arranged as
+For the pre-processed DTU dataset, please download the [rectified images](http://roboimagedata.compute.dtu.dk/?page_id=36) from the official website and ground truth depths and cameras: [huggingface](https://huggingface.co/datasets/jzhangbs/vismvsnet_dtu). The data should be arranged as
 ```
 - <data_root>
     - Rectified
