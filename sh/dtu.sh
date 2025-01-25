@@ -1,8 +1,8 @@
-L_SCAN=$(seq 0 21)
-L_JOB=( <job name> )
+L_SCAN=( 24 37 40 55 65 69 83 97 105 106 110 114 118 122 )
+L_JOB=( vis )
 L_MODE=( soft )
-L_NS=( 5 )
-DIR=<root dir of output result>
+L_NS=( 3 )
+DIR=~/code/holistic_diffusion/logs/dtu/vis
 
 for ((i=0;i<${#L_JOB[@]};i++)); do
     JOB=${L_JOB[i]}
@@ -12,7 +12,7 @@ for ((i=0;i<${#L_JOB[@]};i++)); do
             echo SCAN ${SCAN} JOB ${JOB} MODE ${MODE} NS ${NS}
             mkdir -p ${DIR}/depth_${SCAN}_${JOB}_${NS}
             SCAN=${SCAN} python test.py \
-                --data_root <dtu dir> \
+                --data_root /mnt/data/aspen_dtu_o-1.0.0/data/raw \
                 --dataset_name dtu_test \
                 --model_name model_cas \
                 --num_src ${NS} \
@@ -20,10 +20,10 @@ for ((i=0;i<${#L_JOB[@]};i++)); do
                 --interval_scale 0.75 \
                 --cas_depth_num 64,32,16 \
                 --cas_interv_scale 4,2,1 \
-                --resize 1600,1200 \
-                --crop 1600,1184 \
+                --crop 1200,1200 \
+                --resize 1024,1024 \
                 --mode ${MODE} \
-                --load_path <load dir>/${JOB} \
+                --load_path pretrained_model/${JOB} \
                 --write_result \
                 --result_dir ${DIR}/depth_${SCAN}_${JOB}_${NS}
         done

@@ -36,10 +36,20 @@ class DTU(data.Dataset):
         src_idxs = self.pair[ref_idx][:self.num_src]#[22, 48, 0]#
         light_idx = i // self.num_view % self.num_light if self.fix_light is None else self.fix_light#3#
         scan_idx = int(os.environ['SCAN']) #i // self.num_view // self.num_light#2#
-        ref = self.data_list[scan_idx][light_idx][ref_idx]
-        scan = int(ref[0].split('/')[1].split('_')[0][4:])
-        srcs = [self.data_list[scan_idx][light_idx][source_idx] for source_idx in src_idxs]
-        masks = [f'occlusion2/scan{scan}/{ref_idx}_{src_idx}.png' for src_idx in src_idxs]
+        ref = [
+            f"Rectified/scan{scan_idx}/rect_{ref_idx+1:03}_{light_idx}_r5000.png",
+            f"Cameras/{ref_idx:08}_cam.txt",
+            f"Depths/scan3/depth_map_{ref_idx:04}.pfm"
+        ]
+        srcs = [
+            [
+                f"Rectified/scan{scan_idx}/rect_{src_idx+1:03}_{light_idx}_r5000.png",
+                f"Cameras/{src_idx:08}_cam.txt",
+                f"Depths/scan3/depth_map_{src_idx:04}.pfm"
+            ]
+            for src_idx in src_idxs
+        ]
+        masks = [f'occlusion2/scan{scan_idx}/{ref_idx}_{src_idx}.png' for src_idx in src_idxs]
         skip = 0
 
         filenames = {'ref':ref[0], 'ref_cam':ref[1], 'srcs':[srcs[i][0] for i in range(self.num_src)], 'srcs_cam':[srcs[i][1] for i in range(self.num_src)], 'gt':ref[2], 'masks':masks}
@@ -74,8 +84,8 @@ def val_preproc(sample, preproc_args):
     ref, ref_cam, srcs, srcs_cam, gt, masks, skip = [sample[attr] for attr in ['ref', 'ref_cam', 'srcs', 'srcs_cam', 'gt', 'masks', 'skip']]
 
     ref, *srcs = [center_image(img) for img in [ref] + srcs]
-    ref, ref_cam, srcs, srcs_cam, gt, masks = resize([ref, ref_cam, srcs, srcs_cam, gt, masks], preproc_args['resize_width'], preproc_args['resize_height'])
     ref, ref_cam, srcs, srcs_cam, gt, masks = center_crop([ref, ref_cam, srcs, srcs_cam, gt, masks], preproc_args['crop_width'], preproc_args['crop_height'])
+    ref, ref_cam, srcs, srcs_cam, gt, masks = resize([ref, ref_cam, srcs, srcs_cam, gt, masks], preproc_args['resize_width'], preproc_args['resize_height'])
     ref, *srcs, gt = to_channel_first([ref] + srcs + [gt])
     masks = to_channel_first(masks)
 
